@@ -1,0 +1,212 @@
+generator client {
+provider = "prisma-client"
+output   = "../src/generated/prisma"
+}
+
+datasource db {
+provider = "postgresql"
+}
+
+// ──────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Grade {
+  A
+  B
+  C
+  D
+  F
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+// ──────────────────────────────────────────
+// MODELS
+// ──────────────────────────────────────────
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String
+  role          Role           @default(STUDENT)
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  student       Student?
+  teacher       Teacher?
+  parent        Parent?
+  announcements Announcement[]
+}
+
+model Student {
+  id          String          @id @default(cuid())
+  userId      String          @unique
+  user        User            @relation(fields: [userId], references: [id])
+  classId     String?
+  class       Class?          @relation(fields: [classId], references: [id])
+  rollNumber  Int
+  enrollDate  DateTime        @default(now())
+  dateOfBirth DateTime
+  gender      Gender
+  attendances Attendance[]
+  results     Result[]
+  parents     ParentStudent[]
+
+  @@unique([rollNumber, classId])
+}
+
+model Teacher {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id])
+  phone          String?
+  specialization String?
+  qualification  String?
+  joinDate       DateTime     @default(now())
+  assignments    Assignment[]
+  timetables     Timetable[]
+  classes        Class[]
+}
+
+model Parent {
+  id       String          @id @default(cuid())
+  userId   String          @unique
+  user     User            @relation(fields: [userId], references: [id])
+  phone    String?
+  children ParentStudent[]
+}
+
+model ParentStudent {
+  parentId  String
+  studentId String
+  parent    Parent  @relation(fields: [parentId], references: [id])
+  student   Student @relation(fields: [studentId], references: [id])
+
+  @@id([parentId, studentId])
+}
+
+model Class {
+  id                String         @id @default(cuid())
+  name              String
+  year              Int
+  section           String
+  academicYear      String
+  homeRoomTeacherId String?
+  homeRoomTeacher   Teacher?       @relation(fields: [homeRoomTeacherId], references: [id])
+  students          Student[]
+  assignments       Assignment[]
+  exams             Exam[]
+  attendances       Attendance[]
+  timetables        Timetable[]
+  announcements     Announcement[]
+
+  @@unique([year, section, academicYear])
+}
+
+model Subject {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  assignments Assignment[]
+  exams       Exam[]
+  timetables  Timetable[]
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  description String?
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([teacherId, subjectId, classId])
+}
+
+model Exam {
+  id         String   @id @default(cuid())
+  name       String
+  totalMarks Int
+  examDate   DateTime
+  subjectId  String
+  subject    Subject  @relation(fields: [subjectId], references: [id])
+  classId    String
+  class      Class    @relation(fields: [classId], references: [id])
+  results    Result[]
+  createdAt  DateTime @default(now())
+}
+
+model Result {
+  id        String   @id @default(cuid())
+  score     Float
+  grade     Grade
+  status    String
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id])
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([examId, studentId])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  date      DateTime
+  status    AttendanceStatus
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id])
+  classId   String
+  class     Class            @relation(fields: [classId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@unique([studentId, classId, date])
+}
+
+model Timetable {
+  id        String   @id @default(cuid())
+  day       String
+  startTime String
+  endTime   String
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  @@unique([classId, day, startTime])
+}
+
+model Announcement {
+  id         String   @id @default(cuid())
+  title      String
+  content    String
+  targetRole Role?
+  classId    String?
+  class      Class?   @relation(fields: [classId], references: [id])
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+}
